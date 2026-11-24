@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Главная</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+<h1>Главная</h1>
+<div class="list" id="list"></div>
+</div>
+<script>
+// Разделы сайта. Чтобы добавить новый — допишите элемент в массив.
+const SECTIONS = [
+  {title:'Экзамены', icon:'🎓', url:'exam.html', desc:'Билеты: вопрос-ответ и тесты'},
+  // {title:'Новый раздел', icon:'📁', url:'section.html', desc:'Описание'},
+];
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+document.getElementById('list').innerHTML=SECTIONS.map(s=>
+ '<a class="card" href="'+esc(s.url)+'"><span class="sec"><span class="ico">'+s.icon+'</span><span><b>'+esc(s.title)+'</b><br><span class="desc">'+esc(s.desc)+'</span></span></span><span class="cnt">→</span></a>').join('');
+</script>
+</body>
+</html>

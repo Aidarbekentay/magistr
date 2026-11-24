@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Подготовка к экзаменам</title>
+<link rel="stylesheet" href="style.css">
+<script>const EXAMS=[];</script>
+<script src="data/subjects.js"></script>
+</head>
+<body>
+<div id="listPage" class="wrap hidden">
+<a href="index.html" class="back">← Главная</a>
+<h1>Подготовка к экзаменам</h1>
+<div class="list" id="list"></div>
+</div>
+<div id="subjPage" class="hidden">
+<div class="wrap">
+<a href="exam.html" class="back">← Все дисциплины</a>
+<h1 id="title"></h1>
+
+<!-- Меню -->
+<div id="menu" class="card">
+  <div class="row" style="margin-bottom:14px">
+    <label>С вопроса <input type="number" id="from" min="1" value="1"></label>
+    <label>по <input type="number" id="to" min="1" value="100"></label>
+    <label class="chk"><input type="checkbox" id="shuffle"> перемешать</label>
+  </div>
+  <div class="row">
+    <button class="btn primary big" onclick="start('cards')">📖 Вопрос-ответ</button>
+    <button class="btn primary big" onclick="start('test')">✅ Тест</button>
+  </div>
+</div>
+
+<!-- Карточки -->
+<div id="cards" class="hidden">
+  <div class="card">
+    <div class="bar"><i id="cBar"></i></div>
+    <div class="meta"><span id="cPos"></span><span id="cNum"></span></div>
+    <p class="q" id="cQ"></p>
+    <button class="btn" id="cShow" onclick="showAns()">Показать ответ</button>
+    <div class="ans hidden" id="cA"></div>
+  </div>
+  <div class="row">
+    <button class="btn" onclick="cMove(-1)" id="cPrev">← Назад</button>
+    <button class="btn primary" onclick="cMove(1)" id="cNext" style="flex:1">Далее →</button>
+    <button class="btn" onclick="toMenu()">Меню</button>
+  </div>
+</div>
+
+<!-- Тест -->
+<div id="test" class="hidden">
+  <div class="card">
+    <div class="bar"><i id="tBar"></i></div>
+    <div class="meta"><span id="tPos"></span><span id="tScore"></span></div>
+    <div class="ticket" id="tTicket"></div>
+    <p class="q" id="tQ"></p>
+    <div id="tOpts"></div>
+  </div>
+  <div class="row">
+    <button class="btn primary" id="tNext" onclick="tNext()" style="flex:1" disabled>Далее →</button>
+    <button class="btn" onclick="toMenu()">Меню</button>
+  </div>
+</div>
+
+<!-- Результат -->
+<div id="result" class="hidden">
+  <div class="card">
+    <div class="res" id="rScore"></div>
+    <div id="rText" style="color:var(--muted)"></div>
+    <div id="rErr"></div>
+  </div>
+  <div class="row">
+    <button class="btn primary" id="rRetry" onclick="retryErrors()">Повторить ошибки</button>
+    <button class="btn" onclick="toMenu()">Меню</button>
+  </div>
+</div>
+</div>
+
+</div>
+<script>
+
+let DATA=[], MAX=0;
+let list=[], i=0, score=0, errors=[];
+const $=id=>document.getElementById(id);
+const mix=a=>{a=a.slice();for(let k=a.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[a[k],a[j]]=[a[j],a[k]]}return a};
+function show(id){['menu','cards','test','result'].forEach(x=>$(x).classList.toggle('hidden',x!==id));window.scrollTo(0,0)}
+function toMenu(){show('menu')}
+
+function start(mode, custom){
+  if(custom){list=custom}else{
+    let f=Math.max(1,Math.min(MAX,+$('from').value||1)), t=Math.max(1,Math.min(MAX,+$('to').value||MAX));
+    if(f>t)[f,t]=[t,f];
+    list=DATA.filter(d=>d.n>=f&&d.n<=t);
+    if($('shuffle').checked) list=mix(list);
+  }
+  i=0;score=0;errors=[];
+  if(mode==='cards'){show('cards');renderCard()}else{show('test');renderTest()}
+}
+
+/* --- Вопрос-ответ --- */
+function renderCard(){
+  const d=list[i];
+  $('cPos').textContent=(i+1)+' из '+list.length;
+  $('cNum').textContent='Билет №'+d.n;
+  $('cQ').textContent=d.q;
+  $('cA').textContent=d.a;
+  $('cA').classList.add('hidden');$('cShow').classList.remove('hidden');
+  $('cPrev').disabled=i===0;
+  $('cNext').textContent=i===list.length-1?'Готово ✓':'Далее →';
+  $('cBar').style.width=((i+1)/list.length*100)+'%';
+}
+function showAns(){$('cA').classList.remove('hidden');$('cShow').classList.add('hidden')}
+function cMove(s){if(i+s>=list.length){toMenu();return}i=Math.max(0,i+s);renderCard()}
+
+/* --- Тест --- */
+function renderTest(){
+  const d=list[i];
+  $('tPos').textContent='Вопрос '+(i+1)+' из '+list.length;
+  $('tScore').textContent='Верно: '+score;
+  $('tTicket').textContent='Билет №'+d.n;
+  $('tQ').textContent=d.q;
+  $('tNext').disabled=true;
+  $('tNext').textContent=i===list.length-1?'Результат':'Далее →';
+  $('tBar').style.width=(i/list.length*100)+'%';
+  const box=$('tOpts');box.innerHTML='';
+  mix([{text:d.a,ok:true}].concat(wrong(d).map(x=>({text:x.a,ok:false})))).forEach(o=>{
+    const b=document.createElement('button');b.className='opt';b.textContent=o.text;b.dataset.ok=o.ok?1:0;
+    b.onclick=()=>pick(b,d);box.appendChild(b);
+  });
+}
+function pick(b,d){
+  const opts=[...document.querySelectorAll('#tOpts .opt')];
+  if(opts.some(o=>o.disabled))return;
+  opts.forEach(o=>{o.disabled=true;if(o.dataset.ok==='1')o.classList.add('ok')});
+  if(b.dataset.ok==='1'){score++}else{b.classList.add('bad');errors.push({d,your:b.textContent})}
+  $('tScore').textContent='Верно: '+score;
+  $('tNext').disabled=false;
+}
+// Похожие по смыслу пары не ставим друг другу в ложные варианты
+let SIMILAR=[];
+function wrong(d){
+  const bad=n=>n===d.n||SIMILAR.some(p=>p.includes(d.n)&&p.includes(n));
+  let pool=DATA.filter(x=>Math.abs(x.n-d.n)<=6&&!bad(x.n));
+  return mix(pool).slice(0,3);
+}
+function tNext(){i++;if(i<list.length){renderTest()}else{showResult()}}
+function showResult(){
+  show('result');
+  const p=Math.round(score/list.length*100);
+  $('rScore').textContent=score+' / '+list.length+' ('+p+'%)';
+  $('rText').textContent=p>=90?'Отлично!':p>=70?'Хорошо, повторите ошибки.':'Стоит повторить материал.';
+  $('rErr').innerHTML=errors.map(e=>'<div class="err"><b>№'+e.d.n+'.</b> '+esc(e.d.q)+'<br>Ваш ответ: '+esc(e.your)+'<br>Правильно: <b>'+esc(e.d.a)+'</b></div>').join('');
+  $('rRetry').classList.toggle('hidden',errors.length===0);
+}
+function retryErrors(){start('test',mix(errors.map(e=>e.d)))}
+function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+// --- загрузка дисциплин ---
+function load(slug){return new Promise((ok,err)=>{const s=document.createElement('script');s.src='data/'+slug+'.js';s.onload=ok;s.onerror=()=>err(slug);document.head.appendChild(s)})}
+(async()=>{
+  const want=new URLSearchParams(location.search).get('d');
+  const files=want?SUBJECT_FILES.filter(f=>f===want):SUBJECT_FILES;
+  await Promise.allSettled(files.map(load));
+  if(want){
+    const s=EXAMS.find(e=>e.slug===want);
+    if(!s){document.body.innerHTML='<div class="wrap"><p>Дисциплина не найдена. <a href="exam.html">К списку</a></p></div>';return}
+    DATA=s.items;MAX=DATA.length;SIMILAR=s.similar||[];
+    document.title=s.title+' — подготовка к экзамену';
+    $('title').textContent=s.title+' · '+MAX+' вопросов';
+    $('from').max=MAX;$('to').max=MAX;$('to').value=MAX;
+    $('subjPage').classList.remove('hidden');
+  }else{
+    const order=SUBJECT_FILES;EXAMS.sort((a,b)=>a.title.localeCompare(b.title,'ru'));
+    $('list').innerHTML=EXAMS.length?EXAMS.map(e=>'<a class="card" href="exam.html?d='+encodeURIComponent(e.slug)+'"><b>'+esc(e.title)+'</b><span class="cnt">'+e.items.length+' вопр.</span></a>').join(''):'<div class="card">Пока нет дисциплин.</div>';
+    $('listPage').classList.remove('hidden');
+  }
+})();
+</script>
+</body>
+</html>
